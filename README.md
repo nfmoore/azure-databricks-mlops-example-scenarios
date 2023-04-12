@@ -2,11 +2,10 @@
 
 ## :books: Overview
 
-MLOps is a set of repeatable, automated, and collaborative workflows with best practices that empower teams of ML professionals to quickly and easily get their machine learning models deployed into production.
+This repository provides prescriptive guidance when building, deploying, and monitoring machine learning models with [Azure Databricks](https://learn.microsoft.com/azure/databricks/introduction/) in line with MLOps principles and practices. These example scenarios provide an end-to-end approach for MLOps in Azure based on common inference scenarios that focus on [Azure Databricks](https://learn.microsoft.com/azure/databricks/introduction/) used in conjunction with [GitHub Actions](https://github.com/features/actions).
 
-This repository provides prescriptive guidance when building, deploying, and monitoring machine learning models with [Azure Databricks](https://learn.microsoft.com/azure/databricks/introduction/) in line with MLOps principles and practices.
-
-These example scenarios provided an end-to-end approach for MLOps in Azure based on common inference scenarios. The example scenarios will focus on [Azure Databricks](https://learn.microsoft.com/azure/databricks/introduction/) and [GitHub Actions](https://github.com/features/actions).
+> **Note**:
+> MLOps aims to deploy and maintain machine learning models in production reliably and efficiently. It is supported by a set of repeatable, automated, and collaborative workflows that empower teams of ML professionals to quickly and easily release their machine learning models and monitor their effectiveness. 
 
 ## :computer: Getting Started
 
@@ -29,8 +28,8 @@ This proof-of-concept will cover the following example scenarios:
 
 | Example Scenario | Inference Scenario | Description |
 | ---------------- | ------------------ | ----------- |
-| [Serving Endpoint](./.github/docs/online-endpoint.md) | Online Inference | Consume a registered model as an serving endpoint within Azure Databricks for low-latency scenarios. |
-| Databricks Job (coming soon) | Batch Inference | Consume a registered model as a scheduled job within Azure Databricks for high-throughput scenarios that can be executed within a single Azure Databricks workspace. |
+| [Serving Endpoint](./.github/docs/online-endpoint.md) | Online | Consume a registered model as an serving endpoint within Azure Databricks for low-latency scenarios. |
+| Databricks Job (coming soon) | Batch | Consume a registered model as a scheduled job within Azure Databricks for high-throughput scenarios. |
 
 ## :balance_scale: License
 
