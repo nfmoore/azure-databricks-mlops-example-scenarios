@@ -1,39 +1,41 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # Train Machine Learning Model
-# MAGIC 
+# MAGIC
 # MAGIC This notebook aims to develop and register an MLFlow Model for deployment consisting of:
 # MAGIC - a machine learning model to predict the liklihood of employee attrition.
-# MAGIC 
+# MAGIC
 # MAGIC This example uses an adapted  version of the [`IBM HR Analytics Employee Attrition & Performance` dataset](https://www.kaggle.com/pavansubhasht/ibm-hr-analytics-attrition-dataset) available from Kaggle.
-# MAGIC 
+# MAGIC
 # MAGIC > Ensure you have created managed Delta tables in the Hive Metastore with the associated dataset. These [instructions](https://learn.microsoft.com/en-au/azure/databricks/ingestion/add-data/upload-data#upload-the-file) can be used to learn how to upload the dataset.
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC 
+# MAGIC
 # MAGIC #### Import dependencies and define constants
 
 # COMMAND ----------
 
-import pandas as pd
 import json
-from typing import Tuple, Dict, Union
-from sklearn.model_selection import train_test_split
-from hyperopt import STATUS_OK, fmin, hp, tpe
+from typing import Dict, Tuple, Union
+
 import mlflow
+import pandas as pd
+from hyperopt import STATUS_OK, fmin, hp, tpe
+from mlflow.models.signature import infer_signature
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import (accuracy_score, f1_score, precision_score,
                              recall_score, roc_auc_score)
+from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
-from mlflow.models.signature import infer_signature
 
 # define notebook parameters
-dbutils.widgets.text("curated_dataset_table", "hive_metastore.default.employee_attrition_curated")
+dbutils.widgets.text("curated_dataset_table",
+                     "hive_metastore.default.employee_attrition_curated")
 
 # define target column
 TARGET = ["Attrition"]
@@ -77,7 +79,7 @@ NUMERIC_FEATURES = [
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC 
+# MAGIC
 # MAGIC #### Define functions to build the model
 
 # COMMAND ----------
@@ -94,10 +96,11 @@ def prepare_data(df: pd.DataFrame, random_state: int = 2023) -> Tuple[pd.DataFra
         test_size=0.20,
         random_state=random_state
     )
-    
+
     return df_train, df_test
 
 # COMMAND ----------
+
 
 def make_classifer_pipeline(params: Dict[str, Union[str,  int]]) -> Pipeline:
     """Create sklearn pipeline to apply transforms and a final estimator"""
@@ -137,18 +140,20 @@ def hyperparameter_tuning(params):
 
     with mlflow.start_run(nested=True):
         # read and process curated data
-        df = spark.read.table(dbutils.widgets.get("curated_dataset_table")).toPandas()
+        df = spark.read.table(dbutils.widgets.get(
+            "curated_dataset_table")).toPandas()
         df_train, df_test = prepare_data(df)
 
         # seperate features and target variables
-        x_train, y_train = df_train[CATEGORICAL_FEATURES + NUMERIC_FEATURES], df_train[TARGET]
-        x_test, y_test = df_test[CATEGORICAL_FEATURES + NUMERIC_FEATURES], df_test[TARGET]
+        x_train, y_train = df_train[CATEGORICAL_FEATURES +
+                                    NUMERIC_FEATURES], df_train[TARGET]
+        x_test, y_test = df_test[CATEGORICAL_FEATURES +
+                                 NUMERIC_FEATURES], df_test[TARGET]
 
         # train and model
         estimator = make_classifer_pipeline(params)
         estimator = estimator.fit(x_train, y_train.values.ravel())
         y_predict_proba = estimator.predict_proba(x_test)
-        auc_score = roc_auc_score(y_test, y_predict_proba[:, 1])
 
         # train model
         estimator = make_classifer_pipeline(params)
@@ -157,14 +162,17 @@ def hyperparameter_tuning(params):
         # calculate evaluation metrics
         y_pred = estimator.predict(x_test)
 
-        validation_accuracy_score = accuracy_score(y_test.values.ravel(), y_pred)
+        validation_accuracy_score = accuracy_score(
+            y_test.values.ravel(), y_pred)
         validation_roc_auc_score = roc_auc_score(y_test.values.ravel(), y_pred)
         validation_f1_score = f1_score(y_test.values.ravel(), y_pred)
-        validation_precision_score = precision_score(y_test.values.ravel(), y_pred)
+        validation_precision_score = precision_score(
+            y_test.values.ravel(), y_pred)
         validation_recall_score = recall_score(y_test.values.ravel(), y_pred)
 
         # log evaluation metrics
-        mlflow.log_metric("validation_accuracy_score", validation_accuracy_score)
+        mlflow.log_metric("validation_accuracy_score",
+                          validation_accuracy_score)
         mlflow.log_metric("validation_roc_auc_score", validation_roc_auc_score)
         mlflow.log_metric("validation_f1_score", validation_f1_score)
         mlflow.log_metric("validation_precision_score",
@@ -174,11 +182,13 @@ def hyperparameter_tuning(params):
         # log model
         input_example = x_test.iloc[0].to_dict()
         signature = infer_signature(x_train, y_pred)
-        mlflow.sklearn.log_model(estimator, "model", signature=signature, input_example=input_example)
+        mlflow.sklearn.log_model(
+            estimator, "model", signature=signature, input_example=input_example)
 
         return {"loss": -validation_roc_auc_score, "status": STATUS_OK}
 
 # COMMAND ----------
+
 
 def train_model():
     # start model training run
@@ -200,31 +210,32 @@ def train_model():
 
         # end run
         mlflow.end_run()
-        
+
         return run
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC 
+# MAGIC
 # MAGIC #### Train and register the machine learning model
 
 # COMMAND ----------
+
 
 # Train model
 run = train_model()
 
 # Retreive model from best run
-best_run = mlflow.search_runs(filter_string=f"tags.mlflow.parentRunId='{run.info.run_id}'", order_by=["metrics.testing_auc DESC"]).iloc[0]
+best_run = mlflow.search_runs(filter_string=f"tags.mlflow.parentRunId='{run.info.run_id}'", order_by=[
+                              "metrics.testing_auc DESC"]).iloc[0]
 
 # Register model artifact
 model_name = "employee-attrition"
 result = mlflow.register_model(f"runs:/{best_run.run_id}/model", model_name)
 
 # Return notebook output
-json_output = json.dumps({"output": {"MODEL_NAME": result.name, "MODEL_VERSION": result.version}})
+json_output = json.dumps(
+    {"output": {"MODEL_NAME": result.name, "MODEL_VERSION": result.version}})
 dbutils.notebook.exit(json_output)
 
 # COMMAND ----------
-
-
