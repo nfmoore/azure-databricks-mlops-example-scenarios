@@ -1,5 +1,8 @@
 name: Build Model
 
+env:
+  DATABRICKS_HOST: https://adb-8818992417612582.2.azuredatabricks.net
+  
 on:
   workflow_dispatch: # For demonstration purposes
 
