@@ -39,6 +39,7 @@ jobs:
         id: train-model
         uses: databricks/run-notebook@v0
         with:
+          databricks-host: https://adb-8818992417612582.2.azuredatabricks.net
           local-notebook-path: core/notebooks/train_model.py
           new-cluster-json: >
             {
