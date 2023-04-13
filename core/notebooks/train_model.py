@@ -192,6 +192,7 @@ def hyperparameter_tuning(params):
 
 def train_model():
     # start model training run
+    mlflow.set_experiment("employee-attrition-classifier")
     with mlflow.start_run(run_name="employee-attrition-classifier") as run:
         # define search space
         search_space = {
