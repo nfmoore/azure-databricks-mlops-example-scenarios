@@ -40,7 +40,11 @@ jobs:
             {
               "num_workers": 1,
               "spark_version": "12.2.x-cpu-ml-scala2.12",
-              "node_type_id": "Standard_DS3_v2"
+              "node_type_id": "Standard_DS3_v2",
+              "spark_env_vars": {
+                "DATABRICKS_HOST": "https://adb-8818992417612582.2.azuredatabricks.net",
+                "DATABRICKS_TOKEN": "${{ secrets.DATABRICKS_TOKEN }}"
+            }
             }
           access-control-list-json: >
             [
