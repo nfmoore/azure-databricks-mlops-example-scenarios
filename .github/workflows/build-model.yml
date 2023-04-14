@@ -34,7 +34,7 @@ jobs:
         id: train-model
         uses: databricks/run-notebook@v0
         with:
-          databricks-host: https://adb-8818992417612582.2.azuredatabricks.net
+          databricks-host: ${{ secrets.DATABRICKS_HOST }}
           local-notebook-path: core/notebooks/train_model.py
           new-cluster-json: >
             {
@@ -42,7 +42,7 @@ jobs:
               "spark_version": "12.2.x-cpu-ml-scala2.12",
               "node_type_id": "Standard_DS3_v2",
               "spark_env_vars": {
-                "DATABRICKS_HOST": "https://adb-8818992417612582.2.azuredatabricks.net",
+                "DATABRICKS_HOST": "${{ secrets.DATABRICKS_HOST }}",
                 "DATABRICKS_TOKEN": "${{ secrets.DATABRICKS_TOKEN }}"
             }
             }
@@ -56,22 +56,28 @@ jobs:
 
       - name: Notebook output
         run: |
-          echo ${{ steps.train-model.outputs.notebook-output }}
+          # Set tracking uri
+          export MLFLOW_TRACKING_URI=databricks
+          export DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST }}
+          export DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN }}
 
+          # Set model details
+          MODEL_NAME=$( echo ${{ steps.train-model.outputs.notebook-output }} | jq --raw-output '.output.MODEL_NAME')
+          MODEL_VERSION=$( echo ${{ steps.train-model.outputs.notebook-output }} | jq --raw-output '.output.MODEL_VERSION')
 
-      # - name: Tag and download model
-      #   run: |
-      #     MODEL_NAME=$(yq '.jobs.register_step.inputs.model_name' < core/pipelines/train_model.yml)
-      #     MODEL_VERSION=$(az ml model list --name $MODEL_NAME --query "[0].version" | bc -l)
+          # Get model artifact uri
+          MODEL_ARTIFACT_URI=$(curl -X GET -H "Authorization: Bearer ${DATABRICKS_TOKEN}" ${DATABRICKS_HOST}/api/2.0/preview/mlflow/model-versions/get-download-uri -d '{"name": "'"${MODEL_NAME}"'", "version": "'"${MODEL_VERSION}"'"}' | jq ".artifact_uri" --raw-output)
 
-      #     az ml model update --name $MODEL_NAME --version $MODEL_VERSION \
-      #       --set tags.github_run_id=${{ github.run_id }} tags.github_workflow_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          # Download model artifacts from databricks
+          mkdir artifacts
+          mlflow artifacts download -u $MODEL_ARTIFACT_URI -d artifacts
 
-      #     az ml model download --name $MODEL_NAME --version $MODEL_VERSION --download-path artifacts
-      #     echo '{"model_name":"'"$MODEL_NAME"'","model_version":"'"$MODEL_VERSION"'"}' > artifacts/model.json
+      - name: Upload model artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: artifacts
+          path: artifacts
 
-      # - name: Upload model artifact
-      #   uses: actions/upload-artifact@v3
       #   with:
       #     name: artifacts
       #     path: artifacts
