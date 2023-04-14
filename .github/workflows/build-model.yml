@@ -54,7 +54,7 @@ jobs:
               }
             ]
 
-      - name: Notebook output
+      - name: Download model artifact
         run: |
           # Set tracking uri
           export MLFLOW_TRACKING_URI=databricks
