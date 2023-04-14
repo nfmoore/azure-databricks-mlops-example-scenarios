@@ -34,7 +34,7 @@ jobs:
         id: train-model
         uses: databricks/run-notebook@v0
         with:
-          databricks-host: ${{ var.DATABRICKS_HOST }}
+          databricks-host: ${{ vars.DATABRICKS_HOST }}
           local-notebook-path: core/notebooks/train_model.py
           new-cluster-json: >
             {
@@ -42,7 +42,7 @@ jobs:
               "spark_version": "12.2.x-cpu-ml-scala2.12",
               "node_type_id": "Standard_DS3_v2",
               "spark_env_vars": {
-                "DATABRICKS_HOST": "${{ var.DATABRICKS_HOST }}",
+                "DATABRICKS_HOST": "${{ vars.DATABRICKS_HOST }}",
                 "DATABRICKS_TOKEN": "${{ secrets.DATABRICKS_TOKEN }}"
             }
             }
@@ -58,7 +58,7 @@ jobs:
         run: |
           # Set tracking uri
           export MLFLOW_TRACKING_URI=databricks
-          export DATABRICKS_HOST=${{ var.DATABRICKS_HOST }}
+          export DATABRICKS_HOST=${{ vars.DATABRICKS_HOST }}
           export DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN }}
 
           # Set model details
