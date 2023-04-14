@@ -31,9 +31,9 @@ jobs:
           python-version: '3.10'
       - run: pip install mlflow
 
-#       - name: Generate and save token
-#         run: |
-#           echo "DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN }}" >> $GITHUB_ENV
+      - name: Generate and save token
+        run: |
+          echo "DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN }}" >> $GITHUB_ENV
 
       - name: Trigger train model notebook
         id: train-model
