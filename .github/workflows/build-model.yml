@@ -26,9 +26,15 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Generate and save token
-        run: |
-          echo "DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN }}" >> $GITHUB_ENV
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.8
+          cache: pip
+      - run: pip install mlflow
+
+#       - name: Generate and save token
+#         run: |
+#           echo "DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN }}" >> $GITHUB_ENV
 
       - name: Trigger train model notebook
         id: train-model
