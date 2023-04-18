@@ -65,14 +65,14 @@ jobs:
           # Set tracking uri
           export MLFLOW_TRACKING_URI=databricks
           export DATABRICKS_HOST=${{ vars.DATABRICKS_HOST }}
-          export DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN }}
+          export DATABRICKS_TOKEN=${{ env.DATABRICKS_TOKEN }}
 
           # Set model details
           MODEL_NAME=$( echo '${{ steps.train-model.outputs.notebook-output }}' | jq --raw-output '.output.MODEL_NAME')
           MODEL_VERSION=$( echo '${{ steps.train-model.outputs.notebook-output }}' | jq --raw-output '.output.MODEL_VERSION')
 
           # Get model artifact uri
-          MODEL_ARTIFACT_URI=$(curl -X GET -H "Authorization: Bearer ${DATABRICKS_TOKEN}" ${DATABRICKS_HOST}/api/2.0/preview/mlflow/model-versions/get-download-uri -d '{"name": "'"${MODEL_NAME}"'", "version": "'"${MODEL_VERSION}"'"}' | jq ".artifact_uri" --raw-output)
+          MODEL_ARTIFACT_URI=$(curl -X GET -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" ${DATABRICKS_HOST}/api/2.0/preview/mlflow/model-versions/get-download-uri -d '{"name": "'"${MODEL_NAME}"'", "version": "'"${MODEL_VERSION}"'"}' | jq ".artifact_uri" --raw-output)
 
           # Download model artifacts from databricks
           mkdir artifacts
