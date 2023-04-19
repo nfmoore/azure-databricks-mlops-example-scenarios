@@ -71,6 +71,8 @@ jobs:
    
       - name: Deploy endpoint
         run: |
+          curl -X GET -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" "${{ vars.DATABRICKS_HOST }}/api/2.0/serving-endpoints/${{ env.MODEL_NAME }}"
+          
           ENDPOINT_STATUS_RESPONSE=$(curl -X GET -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
             "${{ vars.DATABRICKS_HOST }}/api/2.0/serving-endpoints/${{ env.MODEL_NAME }}")
           echo $ENDPOINT_STATUS_RESPONSE | jq
@@ -91,7 +93,7 @@ jobs:
 
       - name: Transition models to staging
         run: |
-          curl -X POST -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
+          curl -i -X POST -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
             "${{ secrets.DATABRICKS_HOST }}/api/2.0/mlflow/model-versions/transition-stage" \
             -d '{"name": "${MODEL_NAME}", "version": "${MODEL_VERSION}", "stage": "Production", "archive_existing_versions": true}'
 
