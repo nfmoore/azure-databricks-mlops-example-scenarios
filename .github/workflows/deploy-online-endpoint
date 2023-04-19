@@ -76,15 +76,19 @@ jobs:
           ERROR_CODE=$(echo $ENDPOINT_STATUS_RESPONSE | jq .error_code -r)
 
           if [ "$ERROR_CODE" == "RESOURCE_DOES_NOT_EXIST" ]; then
-              curl -X POST -H Authorization: Bearer ${{ env.DATABRICKS_TOKEN }} \
+              echo "Creating new endpoint..."
+              curl -X POST -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
                 "${{ vars.DATABRICKS_HOST }}/api/2.0/serving-endpoints" \
                 -d '{ "name": "'"${{ env.MODEL_NAME }}"'", "config": { "served_models": [{ "model_name": "'"${{ env.MODEL_NAME }}"'", "model_version": "'"${{ env.MODEL_VERSION }}"'", "workload_size": "Small", "scale_to_zero_enabled": true }] } }'
           else
-              curl -X PUT -H Authorization: Bearer ${{ env.DATABRICKS_TOKEN }} \
+              echo "Updating existing endpoint..."
+              curl -X PUT -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
                 "${{ vars.DATABRICKS_HOST }}/api/2.0/serving-endpoints/${{ env.MODEL_NAME }}/config" \
                 -d '{ "served_models": [{ "model_name": "'"${{ env.MODEL_NAME }}"'", "model_version": "'"${{ env.MODEL_VERSION }}"'", "workload_size": "Small", "scale_to_zero_enabled": true }] }'
           fi
 
-
-
-          log_analytics_workspace_name: law${{ secrets.WORKLOAD_IDENTIFIER }}${{ secrets.RESOURCE_INSTANCE }}
+      - name: Transition models to staging
+        run: |
+          curl -X POST -H "Authorization: Bearer ${{ secrets.DATABRICKS_TOKEN }}" \
+            "${{ secrets.DATABRICKS_HOST }}/api/2.0/mlflow/model-versions/transition-stage" \
+            -d '{ "name": "'"${{ env.MODEL_NAME }}"'", "version": "'"${{ env.MODEL_VERSION }}"'", "stage": "Staging", "archive_existing_versions": true }' ;
