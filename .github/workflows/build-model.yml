@@ -26,20 +26,22 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
+      - name: Log into Azure
+        uses: Azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Generate and save AAD token
+        id: generate-token
+        run: |
+          echo "DATABRICKS_TOKEN=$(az account get-access-token \
+          --resource 2ff814a6-3304-4ab8-85cb-cd0e6f879c1d | jq .accessToken -r)" >> $GITHUB_ENV
+
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
       - run: pip install mlflow
 
-      - name: Generate and save AAD Token
-        run: |
-          echo "DATABRICKS_TOKEN=$(curl -X POST -H 'Content-Type: application/x-www-form-urlencoded' \
-            https://login.microsoftonline.com/${{ secrets.AZURE_SP_TENANT_ID }}/oauth2/v2.0/token \
-            -d 'client_id=${{ secrets.AZURE_SP_APPLICATION_ID }}' \
-            -d 'grant_type=client_credentials' \
-            -d 'scope=2ff814a6-3304-4ab8-85cb-cd0e6f879c1d%2F.default' \
-            -d 'client_secret=${{ secrets.AZURE_SP_CLIENT_SECRET }}' |  jq -r  '.access_token')" >> $GITHUB_ENV
-            
       - name: Trigger train model notebook
         id: train-model
         uses: databricks/run-notebook@v0
@@ -72,7 +74,9 @@ jobs:
           MODEL_VERSION=$( echo '${{ steps.train-model.outputs.notebook-output }}' | jq --raw-output '.output.MODEL_VERSION')
           
           # Get model artifact uri
-          MODEL_ARTIFACT_URI=$(curl -X GET -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" ${DATABRICKS_HOST}/api/2.0/preview/mlflow/model-versions/get-download-uri -d '{"name": "'"${MODEL_NAME}"'", "version": "'"${MODEL_VERSION}"'"}' | jq ".artifact_uri" --raw-output)
+          MODEL_ARTIFACT_URI=$(curl -X GET -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
+            "${DATABRICKS_HOST}/api/2.0/preview/mlflow/model-versions/get-download-uri" \
+            -d '{"name": "'"${MODEL_NAME}"'", "version": "'"${MODEL_VERSION}"'"}' | jq ".artifact_uri" --raw-output)
 
           # Download model artifacts from databricks
           mkdir artifacts
