@@ -166,7 +166,7 @@ jobs:
         id: upload-model
         with:
           databricks-host: ${{ vars.DATABRICKS_HOST }}
-          local-path: model
+          local-path: model/
 
       - name: Register model
         run: |          
