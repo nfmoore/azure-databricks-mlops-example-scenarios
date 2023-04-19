@@ -1,0 +1,90 @@
+name: Deploy Model to Serving Endpoint
+
+on:
+  workflow_run:
+    workflows:
+      - Build Model
+    types:
+      - completed
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    environment:
+      name: Staging
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - name: Download artifact
+        uses: actions/github-script@v6
+        with:
+          script: |
+            let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: context.payload.workflow_run.id,
+            });
+
+            let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
+              return artifact.name == "artifacts"
+            })[0];
+
+            let download = await github.rest.actions.downloadArtifact({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                artifact_id: matchArtifact.id,
+                archive_format: 'zip',
+            });
+
+            let fs = require('fs');
+            fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/artifacts.zip`, Buffer.from(download.data));
+
+      - name: Unzip artifact
+        shell: bash
+        run: unzip artifacts.zip
+
+      - name: Generate and save AAD token
+        run: |
+          echo "DATABRICKS_TOKEN=$(curl -X POST -H "Content-Type: application/x-www-form-urlencoded" \
+            "https://login.microsoftonline.com/${{ secrets.AZURE_SP_TENANT_ID }}/oauth2/v2.0/token" \
+            -d "client_id=${{ secrets.AZURE_SP_APPLICATION_ID }}" \
+            -d "scope=2ff814a6-3304-4ab8-85cb-cd0e6f879c1d%2F.default" \
+            -d "scope=2ff814a6-3304-4ab8-85cb-cd0e6f879c1d%2F.default" \
+            -d "client_secret=${{ secrets.AZURE_SP_CLIENT_SECRET }}" |  jq -r  ".access_token")" >> $GITHUB_ENV
+
+      - name: Set model details
+        run: |
+          # Set model details
+          echo "MODEL_NAME=$( cat 'training-output.json' | jq --raw-output '.output.MODEL_NAME')" >> $GITHUB_ENV
+          echo "MODEL_VERSION=$( cat 'training-output.json' | jq --raw-output '.output.MODEL_VERSION')" >> $GITHUB_ENV
+   
+      - name: Deploy endpoint
+        run: |
+          ENDPOINT_STATUS_RESPONSE=$(curl -X GET -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
+            "${{ vars.DATABRICKS_HOST }}/api/2.0/serving-endpoints/${{ env.MODEL_NAME }}")
+          ERROR_CODE=$(echo $ENDPOINT_STATUS_RESPONSE | jq .error_code -r)
+
+          if [ "$ERROR_CODE" == "RESOURCE_DOES_NOT_EXIST" ]; then
+              curl -X POST -H Authorization: Bearer ${{ env.DATABRICKS_TOKEN }} \
+                "${{ vars.DATABRICKS_HOST }}/api/2.0/serving-endpoints" \
+                -d '{ "name": "'"${{ env.MODEL_NAME }}"'", "config": { "served_models": [{ "model_name": "'"${{ env.MODEL_NAME }}"'", "model_version": "'"${{ env.MODEL_VERSION }}"'", "workload_size": "Small", "scale_to_zero_enabled": true }] } }'
+          else
+              curl -X PUT -H Authorization: Bearer ${{ env.DATABRICKS_TOKEN }} \
+                "${{ vars.DATABRICKS_HOST }}/api/2.0/serving-endpoints/${{ env.MODEL_NAME }}/config" \
+                -d '{ "served_models": [{ "model_name": "'"${{ env.MODEL_NAME }}"'", "model_version": "'"${{ env.MODEL_VERSION }}"'", "workload_size": "Small", "scale_to_zero_enabled": true }] }'
+          fi
+
+
+
+          log_analytics_workspace_name: law${{ secrets.WORKLOAD_IDENTIFIER }}${{ secrets.RESOURCE_INSTANCE }}
