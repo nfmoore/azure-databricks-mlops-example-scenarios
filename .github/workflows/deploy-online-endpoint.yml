@@ -91,7 +91,7 @@ jobs:
 
       - name: Transition models to staging
         run: |
-          curl -i -X POST -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
-            "${{ secrets.DATABRICKS_HOST }}/api/2.0/mlflow/model-versions/transition-stage" \
-            -d '{"name": "${MODEL_NAME}", "version": "${MODEL_VERSION}", "stage": "Production", "archive_existing_versions": true}'
+          curl -X POST -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
+            "${{ vars.DATABRICKS_HOST }}/api/2.0/mlflow/model-versions/transition-stage" \
+            -d '{"name": "${{ env.MODEL_NAME }}", "version": "${{ env.MODEL_VERSION }}", "stage": "Production", "archive_existing_versions": true}'
 
