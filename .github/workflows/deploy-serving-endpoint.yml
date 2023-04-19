@@ -165,6 +165,7 @@ jobs:
         uses: databricks/upload-dbfs-temp@v0
         id: upload-model
         with:
+          databricks-host: ${{ vars.DATABRICKS_HOST }}
           local-path: model
 
       - name: Register model
