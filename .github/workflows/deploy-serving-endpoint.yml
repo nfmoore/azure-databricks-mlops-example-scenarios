@@ -179,11 +179,11 @@ jobs:
       - name: Register model
         run: |          
           curl -X POST -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
-            "${{ vars.DATABRICKS_HOST }}/api/2.0/api/2.0/mlflow/registered-models/create" \
+            "${{ vars.DATABRICKS_HOST }}/api/2.0/mlflow/registered-models/create" \
             -d '{ "name": "${{ env.MODEL_NAME }}", "tags": [ { "key": "github_workflow_url", "value": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" } ] }'
 
           curl -X POST -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
-            "${{ vars.DATABRICKS_HOST }}/api/2.0/api/2.0/mlflow/model-versions/create" \
+            "${{ vars.DATABRICKS_HOST }}/api/2.0/mlflow/model-versions/create" \
             -d '{ "name": "${{ env.MODEL_NAME }}", "source": "dbfs:/FileStore/models/${{ env.MODEL_NAME }}/${{ env.MODEL_VERSION }}/model", "tags": [ { "key": "github_workflow_url", "value": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" } ] }'
 
       - name: Deploy endpoint
