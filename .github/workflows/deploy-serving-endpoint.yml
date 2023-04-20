@@ -180,14 +180,16 @@ jobs:
             "${{ vars.DATABRICKS_HOST }}/api/2.0/mlflow/registered-models/create" \
             -d '{ "name": "${{ env.MODEL_NAME }}", "tags": [ { "key": "github_workflow_url", "value": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" } ] }'
 
-          REGISTER_MODEL_OUTPUT=$(curl -X POST -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
+      - name: Register model version
+        run: |          
+          REGISTER_MODEL_RESPONSE=$(curl -X POST -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
             "${{ vars.DATABRICKS_HOST }}/api/2.0/mlflow/model-versions/create" \
             -d '{ "name": "${{ env.MODEL_NAME }}", "source": "dbfs:/FileStore/models/${{ env.MODEL_NAME }}/${{ env.MODEL_VERSION }}/model", "tags": [ { "key": "github_workflow_url", "value": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" } ] }')
           
-          echo $REGISTER_MODEL_OUTPUT
+          echo $REGISTER_MODEL_RESPONSE
 
-          echo "MODEL_NAME=$( echo $REGISTER_MODEL_OUTPUT | jq --raw-output '.model_version.name')" >> $GITHUB_ENV
-          echo "MODEL_VERSION=$( echo $REGISTER_MODEL_OUTPUT | jq --raw-output '.model_version.version')" >> $GITHUB_ENV
+          echo "MODEL_NAME=$( echo $REGISTER_MODEL_RESPONSE | jq --raw-output '.model_version.name')" >> $GITHUB_ENV
+          echo "MODEL_VERSION=$( echo $REGISTER_MODEL_RESPONSE | jq --raw-output '.model_version.version')" >> $GITHUB_ENV
    
       - name: Deploy endpoint
         run: |          
