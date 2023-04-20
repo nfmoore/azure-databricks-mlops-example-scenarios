@@ -116,6 +116,11 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
 
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - run: pip install databricks-cli==0.17.6
+
       - name: Log into Azure
         uses: Azure/login@v1
         with:
@@ -162,11 +167,14 @@ jobs:
           echo "MODEL_VERSION=$( cat 'training-output.json' | jq --raw-output '.output.MODEL_VERSION')" >> $GITHUB_ENV
    
       - name: Upload model
-        uses: databricks/upload-dbfs-temp@v0
-        id: upload-model
-        with:
-          databricks-host: ${{ vars.DATABRICKS_HOST }}
-          local-path: model/
+        run: |
+          export DATABRICKS_HOST=${{ vars.DATABRICKS_HOST }}
+          export DATABRICKS_TOKEN=${{ env.DATABRICKS_TOKEN }}
+
+          dbfs mkdirs dbfs:/FileStore/models/${{ env.MODEL_NAME }}/${{ env.MODEL_VERSION }}/model
+          dbfs cp model dbfs:/FileStore/models/${{ env.MODEL_NAME }}/${{ env.MODEL_VERSION }}/model --recursive
+
+          dbfs ls dbfs:/FileStore/models/${{ env.MODEL_NAME }}/${{ env.MODEL_VERSION }}/model
 
       - name: Register model
         run: |          
@@ -176,7 +184,7 @@ jobs:
 
           curl -X GET -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
             "${{ vars.DATABRICKS_HOST }}/api/2.0/api/2.0/mlflow/model-versions/create" \
-            -d '{ "name": "${{ env.MODEL_NAME }}", "source": "${{ steps.upload-model.outputs.dbfs-file-path }}", "tags": [ { "key": "github_workflow_url", "value": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" } ] }'
+            -d '{ "name": "${{ env.MODEL_NAME }}", "source": "dbfs:/FileStore/models/${{ env.MODEL_NAME }}/${{ env.MODEL_VERSION }}/model", "tags": [ { "key": "github_workflow_url", "value": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" } ] }'
 
       - name: Deploy endpoint
         run: |          
