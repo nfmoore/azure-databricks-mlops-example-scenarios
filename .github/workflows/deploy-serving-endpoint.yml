@@ -67,7 +67,6 @@ jobs:
 
       - name: Set model details
         run: |
-          # Set model details
           echo "MODEL_NAME=$( cat 'training-output.json' | jq --raw-output '.output.MODEL_NAME')" >> $GITHUB_ENV
           echo "MODEL_VERSION=$( cat 'training-output.json' | jq --raw-output '.output.MODEL_VERSION')" >> $GITHUB_ENV
    
@@ -162,7 +161,6 @@ jobs:
 
       - name: Set model details
         run: |
-          # Set model details
           echo "MODEL_NAME=$( cat 'training-output.json' | jq --raw-output '.output.MODEL_NAME')" >> $GITHUB_ENV
           echo "MODEL_VERSION=$( cat 'training-output.json' | jq --raw-output '.output.MODEL_VERSION')" >> $GITHUB_ENV
    
@@ -182,10 +180,15 @@ jobs:
             "${{ vars.DATABRICKS_HOST }}/api/2.0/mlflow/registered-models/create" \
             -d '{ "name": "${{ env.MODEL_NAME }}", "tags": [ { "key": "github_workflow_url", "value": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" } ] }'
 
-          curl -X POST -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
+          REGISTER_MODEL_OUTPUT=$(curl -X POST -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
             "${{ vars.DATABRICKS_HOST }}/api/2.0/mlflow/model-versions/create" \
-            -d '{ "name": "${{ env.MODEL_NAME }}", "source": "dbfs:/FileStore/models/${{ env.MODEL_NAME }}/${{ env.MODEL_VERSION }}/model", "tags": [ { "key": "github_workflow_url", "value": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" } ] }'
+            -d '{ "name": "${{ env.MODEL_NAME }}", "source": "dbfs:/FileStore/models/${{ env.MODEL_NAME }}/${{ env.MODEL_VERSION }}/model", "tags": [ { "key": "github_workflow_url", "value": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" } ] }')
+          
+          echo $REGISTER_MODEL_OUTPUT
 
+          echo "MODEL_NAME=$( echo $REGISTER_MODEL_OUTPUT | jq --raw-output '.model_version.name')" >> $GITHUB_ENV
+          echo "MODEL_VERSION=$( echo $REGISTER_MODEL_OUTPUT | jq --raw-output '.model_version.version')" >> $GITHUB_ENV
+   
       - name: Deploy endpoint
         run: |          
           ENDPOINT_STATUS_RESPONSE=$(curl -X GET -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
