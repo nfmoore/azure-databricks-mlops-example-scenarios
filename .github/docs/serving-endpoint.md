@@ -1,4 +1,4 @@
-# Step-by-Step Setup
+# Serving Endpoint Example Scenario
 
 > **Note**:
 > The purpose of this section is to provide an overview of the serving endpoint solution.
