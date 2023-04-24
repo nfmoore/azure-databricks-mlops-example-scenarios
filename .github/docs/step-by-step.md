@@ -1,7 +1,7 @@
 # Step-by-Step Setup
 
 > **Note**:
-> As with all Azure Deployments, this will incur associated costs. Remember to teardown all related resources after use to avoid unnecessary costs.
+> The purpose of this section is to describe the steps required to set up all parts of this example scenario.
 
 ## Prerequisites
 
@@ -11,6 +11,9 @@ Before implementing this example scenario the following is needed:
 - GitHub account
 
 ## 1. Initial Setup
+
+> **Note**:
+> As with all Azure Deployments, this will incur associated costs. Remember to teardown all related resources after use to avoid unnecessary costs.
 
 ### 1.1. Deploy Azure Resources
 
