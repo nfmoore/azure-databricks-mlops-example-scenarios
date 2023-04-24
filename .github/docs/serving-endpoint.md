@@ -26,7 +26,7 @@ This solution design aims to incorporate principles and practices of machine lea
 
 The below diagram shows a high-level design for implementing online scoring workloads suitable for classical machine learning scenarios using Azure Databricks.
 
-![design](./images/serving-endpoint.png)
+![design](./images/se-design.png)
 
 The solution consists of:
 
@@ -44,7 +44,7 @@ The solution consists of:
 
 The below diagram shows the overall CI/CD process as built with GitHub Actions. This approach consists of three environments consisting of an identical set of resources.
 
-![design](./images/serving-endpoint-cicd.png)
+![design](./images/se-cicd.png)
 
 The environments include:
 
