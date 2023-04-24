@@ -57,10 +57,11 @@ The end-to-end workflow operation consists of:
 1. Triggering the `Model Build` workflow based on an event (e.g. merging code to the main branch via a pull request).
 2. Executing model training from a notebook as a one-time Databricks Job in the Staging workspace.
 3. Registering the model artifact in the model registry in the Staging workspace.
-4. Deploying the model to a Serving Endpoint in the Staging workspace and executing necessary tests.
-5. Downloading the model artifact in the model registry in the Staging workspace and re-registering a copy of the model artifact in the model registry in the Production workspace.
-6. Deploy the model to a Serving Endpoint in the Production workspace that can be integrated with other applications.
-7. Monitoring performance-related metrics of the Serving Endpoint.
+4. Automatically triggering the `Deploy Serving Endpoint` workflow upon completion of the `Build Model` workflow.
+5. Deploying the model to a Serving Endpoint in the Staging workspace and executing necessary tests.
+6. Downloading the model artifact in the model registry in the Staging workspace and re-registering a copy of the model artifact in the model registry in the Production workspace.
+7. Deploy the model to a Serving Endpoint in the Production workspace that can be integrated with other applications.
+8. Monitoring performance-related metrics of the Serving Endpoint.
 
 > **Note**:
 > Monitoring and alerting for data drift have not been incorporated into this example scenario. To incorporate this inference data will need to be collected from the request payload, analysed as a Databricks job, and presented in a monitoring platform such as Azure Monitor for end-user consumption.
