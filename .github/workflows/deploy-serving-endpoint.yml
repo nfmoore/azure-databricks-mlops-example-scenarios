@@ -1,0 +1,218 @@
+name: Deploy Serving Endpoint
+
+on:
+  workflow_run:
+    workflows:
+      - Build Model
+    types:
+      - completed
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    environment:
+      name: Staging
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - name: Log into Azure
+        uses: Azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Generate and save AAD token
+        id: generate-token
+        run: |
+          echo "DATABRICKS_TOKEN=$(az account get-access-token \
+          --resource 2ff814a6-3304-4ab8-85cb-cd0e6f879c1d | jq .accessToken -r)" >> $GITHUB_ENV
+
+      - name: Download artifact
+        uses: actions/github-script@v6
+        with:
+          script: |
+            let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: context.payload.workflow_run.id,
+            });
+
+            let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
+              return artifact.name == "artifacts"
+            })[0];
+
+            let download = await github.rest.actions.downloadArtifact({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                artifact_id: matchArtifact.id,
+                archive_format: 'zip',
+            });
+
+            let fs = require('fs');
+            fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/artifacts.zip`, Buffer.from(download.data));
+
+      - name: Unzip artifact
+        shell: bash
+        run: unzip artifacts.zip
+
+      - name: Set model details
+        run: |
+          echo "MODEL_NAME=$( cat 'training-output.json' | jq --raw-output '.output.MODEL_NAME')" >> $GITHUB_ENV
+          echo "MODEL_VERSION=$( cat 'training-output.json' | jq --raw-output '.output.MODEL_VERSION')" >> $GITHUB_ENV
+   
+      - name: Deploy endpoint
+        run: |          
+          ENDPOINT_STATUS_RESPONSE=$(curl -X GET -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
+            "${{ vars.DATABRICKS_HOST }}/api/2.0/serving-endpoints/${{ env.MODEL_NAME }}")
+          echo $ENDPOINT_STATUS_RESPONSE | jq
+
+          ERROR_CODE=$(echo $ENDPOINT_STATUS_RESPONSE | jq .error_code -r)
+
+          if [ "$ERROR_CODE" == "RESOURCE_DOES_NOT_EXIST" ]; then
+              echo "Creating new endpoint..."
+              curl -X POST -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
+                "${{ vars.DATABRICKS_HOST }}/api/2.0/serving-endpoints" \
+                -d '{ "name": "${{ env.MODEL_NAME }}", "config": { "served_models": [{ "model_name": "${{ env.MODEL_NAME }}", "model_version": "${{ env.MODEL_VERSION }}", "workload_size": "Small", "scale_to_zero_enabled": true }] } }'
+          else
+              echo "Updating existing endpoint..."
+              curl -X PUT -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
+                "${{ vars.DATABRICKS_HOST }}/api/2.0/serving-endpoints/${{ env.MODEL_NAME }}/config" \
+                -d '{ "served_models": [{ "model_name": "${{ env.MODEL_NAME }}", "model_version": "${{ env.MODEL_VERSION }}", "workload_size": "Small", "scale_to_zero_enabled": true }] }'
+          fi
+
+      - name: Transition models to staging
+        run: |
+          curl -X POST -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
+            "${{ vars.DATABRICKS_HOST }}/api/2.0/mlflow/model-versions/transition-stage" \
+            -d '{"name": "${{ env.MODEL_NAME }}", "version": "${{ env.MODEL_VERSION }}", "stage": "Staging", "archive_existing_versions": true}'
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    environment:
+      name: Production
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - run: pip install databricks-cli==0.17.6
+
+      - name: Log into Azure
+        uses: Azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Generate and save AAD token
+        id: generate-token
+        run: |
+          echo "DATABRICKS_TOKEN=$(az account get-access-token \
+          --resource 2ff814a6-3304-4ab8-85cb-cd0e6f879c1d | jq .accessToken -r)" >> $GITHUB_ENV
+
+      - name: Download artifact
+        uses: actions/github-script@v6
+        with:
+          script: |
+            let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: context.payload.workflow_run.id,
+            });
+
+            let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
+              return artifact.name == "artifacts"
+            })[0];
+
+            let download = await github.rest.actions.downloadArtifact({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                artifact_id: matchArtifact.id,
+                archive_format: 'zip',
+            });
+
+            let fs = require('fs');
+            fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/artifacts.zip`, Buffer.from(download.data));
+
+      - name: Unzip artifact
+        shell: bash
+        run: unzip artifacts.zip
+
+      - name: Set model details
+        run: |
+          echo "MODEL_NAME=$( cat 'training-output.json' | jq --raw-output '.output.MODEL_NAME')" >> $GITHUB_ENV
+          echo "MODEL_VERSION=$( cat 'training-output.json' | jq --raw-output '.output.MODEL_VERSION')" >> $GITHUB_ENV
+   
+      - name: Upload model
+        run: |
+          export DATABRICKS_HOST=${{ vars.DATABRICKS_HOST }}
+          export DATABRICKS_TOKEN=${{ env.DATABRICKS_TOKEN }}
+
+          dbfs mkdirs dbfs:/FileStore/models/${{ env.MODEL_NAME }}/${{ env.MODEL_VERSION }}/model
+          dbfs cp model dbfs:/FileStore/models/${{ env.MODEL_NAME }}/${{ env.MODEL_VERSION }}/model --recursive
+
+          dbfs ls dbfs:/FileStore/models/${{ env.MODEL_NAME }}/${{ env.MODEL_VERSION }}/model
+
+      - name: Register model
+        run: |          
+          curl -X POST -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
+            "${{ vars.DATABRICKS_HOST }}/api/2.0/mlflow/registered-models/create" \
+            -d '{ "name": "${{ env.MODEL_NAME }}", "tags": [ { "key": "github_workflow_url", "value": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" } ] }'
+
+      - name: Register model version
+        run: |          
+          REGISTER_MODEL_RESPONSE=$(curl -X POST -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
+            "${{ vars.DATABRICKS_HOST }}/api/2.0/mlflow/model-versions/create" \
+            -d '{ "name": "${{ env.MODEL_NAME }}", "source": "dbfs:/FileStore/models/${{ env.MODEL_NAME }}/${{ env.MODEL_VERSION }}/model", "tags": [ { "key": "github_workflow_url", "value": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" } ] }')
+          
+          echo $REGISTER_MODEL_RESPONSE
+
+          echo "MODEL_NAME=$( echo $REGISTER_MODEL_RESPONSE | jq --raw-output '.model_version.name')" >> $GITHUB_ENV
+          echo "MODEL_VERSION=$( echo $REGISTER_MODEL_RESPONSE | jq --raw-output '.model_version.version')" >> $GITHUB_ENV
+   
+      - name: Deploy endpoint
+        run: |          
+          ENDPOINT_STATUS_RESPONSE=$(curl -X GET -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
+            "${{ vars.DATABRICKS_HOST }}/api/2.0/serving-endpoints/${{ env.MODEL_NAME }}")
+          echo $ENDPOINT_STATUS_RESPONSE | jq
+
+          ERROR_CODE=$(echo $ENDPOINT_STATUS_RESPONSE | jq .error_code -r)
+
+          if [ "$ERROR_CODE" == "RESOURCE_DOES_NOT_EXIST" ]; then
+              echo "Creating new endpoint..."
+              curl -X POST -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
+                "${{ vars.DATABRICKS_HOST }}/api/2.0/serving-endpoints" \
+                -d '{ "name": "${{ env.MODEL_NAME }}", "config": { "served_models": [{ "model_name": "${{ env.MODEL_NAME }}", "model_version": "${{ env.MODEL_VERSION }}", "workload_size": "Small", "scale_to_zero_enabled": true }] } }'
+          else
+              echo "Updating existing endpoint..."
+              curl -X PUT -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
+                "${{ vars.DATABRICKS_HOST }}/api/2.0/serving-endpoints/${{ env.MODEL_NAME }}/config" \
+                -d '{ "served_models": [{ "model_name": "${{ env.MODEL_NAME }}", "model_version": "${{ env.MODEL_VERSION }}", "workload_size": "Small", "scale_to_zero_enabled": true }] }'
+          fi
+
+      - name: Transition models to production
+        run: |
+          curl -X POST -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
+            "${{ vars.DATABRICKS_HOST }}/api/2.0/mlflow/model-versions/transition-stage" \
+            -d '{"name": "${{ env.MODEL_NAME }}", "version": "${{ env.MODEL_VERSION }}", "stage": "Production", "archive_existing_versions": true}'

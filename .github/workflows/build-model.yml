@@ -1,0 +1,90 @@
+name: Build Model
+
+on:
+  workflow_dispatch: # For demonstration purposes
+
+  # push: # Runs workflow when you push a commit or tag
+  #   branches:
+  #     - main
+
+  # schedule: # Runs workflow at a scheduled time.
+  #   - cron: "0 0 * * 0"
+
+jobs:
+  create-model-staging:
+    name: Create Model in Staging
+    runs-on: ubuntu-latest
+
+    environment:
+      name: Staging
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Log into Azure
+        uses: Azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Generate and save AAD token
+        id: generate-token
+        run: |
+          echo "DATABRICKS_TOKEN=$(az account get-access-token \
+          --resource 2ff814a6-3304-4ab8-85cb-cd0e6f879c1d | jq .accessToken -r)" >> $GITHUB_ENV
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - run: pip install mlflow
+
+      - name: Trigger train model notebook
+        id: train-model
+        uses: databricks/run-notebook@v0
+        with:
+          databricks-host: ${{ vars.DATABRICKS_HOST }}
+          local-notebook-path: core/notebooks/train_model.py
+          new-cluster-json: >
+            {
+              "num_workers": 1,
+              "spark_version": "12.2.x-cpu-ml-scala2.12",
+              "node_type_id": "Standard_DS3_v2"
+            }
+          access-control-list-json: >
+            [
+              {
+                "group_name": "users",
+                "permission_level": "CAN_VIEW"
+              }
+            ]
+
+      - name: Download model artifact
+        run: |
+          # Set tracking uri
+          export MLFLOW_TRACKING_URI=databricks
+          export DATABRICKS_HOST=${{ vars.DATABRICKS_HOST }}
+          export DATABRICKS_TOKEN=${{ env.DATABRICKS_TOKEN }}
+
+          # Set model details
+          MODEL_NAME=$( echo '${{ steps.train-model.outputs.notebook-output }}' | jq --raw-output '.output.MODEL_NAME')
+          MODEL_VERSION=$( echo '${{ steps.train-model.outputs.notebook-output }}' | jq --raw-output '.output.MODEL_VERSION')
+          
+          # Get model artifact uri
+          MODEL_ARTIFACT_URI=$(curl -X GET -H "Authorization: Bearer ${{ env.DATABRICKS_TOKEN }}" \
+            "${DATABRICKS_HOST}/api/2.0/preview/mlflow/model-versions/get-download-uri" \
+            -d '{"name": "'"${MODEL_NAME}"'", "version": "'"${MODEL_VERSION}"'"}' | jq ".artifact_uri" --raw-output)
+
+          # Download model artifacts from databricks
+          mkdir artifacts
+          mlflow artifacts download -u $MODEL_ARTIFACT_URI -d artifacts
+          echo '${{ steps.train-model.outputs.notebook-output }}' > artifacts/training-output.json
+          
+      - name: Upload model artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: artifacts
+          path: artifacts
