@@ -1,70 +1,87 @@
-//********************************************************
-// General Parameters
-//********************************************************
-
-@description('Workload Identifier')
-param workloadIdentifier string = substring(uniqueString(resourceGroup().id), 0, 6)
-
-@description('Resource Instance')
-param resourceInstance string = '001'
+targetScope = 'subscription'
 
 //********************************************************
-// Resource Config Parameters
+// Parameters
 //********************************************************
 
-@description('Databricks Workspace Name')
-param databricksWorkspaceName string = 'dbw${workloadIdentifier}${resourceInstance}'
+@description('Resource group name')
+param resourceGroupName string = 'rg-example-scenario-azure-databricks-mlops'
 
-@description('Databricks Workspace Location')
-param databricksWorkspaceLocation string = resourceGroup().location
+@description('Databricks managed resource group name')
+param mrgDatabricksName string = 'rgm-example-scenario-azure-databricks-mlops-databricks'
 
-@description('Databricks Managed Resource Group Name')
-param databricksManagedResourceGroupName string = '${resourceGroup().name}-dbw-mngd'
-
-@description('The pricing tier of workspace.')
-@allowed([
-  'standard'
-  'premium'
-])
-param pricingTier string = 'premium'
+@description('Location for resources')
+param location string = 'australiaeast'
 
 //********************************************************
 // Variables
 //********************************************************
 
+var serviceSuffix = substring(uniqueString(resourceGroupName), 0, 5)
+
+var resources = {
+  databricksName: 'dbw01${serviceSuffix}'
+  logAnalyticsWorkspaceName: 'log01${serviceSuffix}'
+  storageAccountName: 'st01${serviceSuffix}'
+}
+
 //********************************************************
 // Resources
 //********************************************************
-// Databricks Workspace
-resource r_databricksWorkspace 'Microsoft.Databricks/workspaces@2018-04-01' = {
-  name: databricksWorkspaceName
-  location: databricksWorkspaceLocation
-  sku: {
-    name: pricingTier
-  }
-  properties: {
-    managedResourceGroupId: r_databricksManagedResourceGroup.id
-    parameters: {
-      enableNoPublicIp: {
-        value: false
-      }
+
+resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
+  name: resourceGroupName
+  location: location
+}
+
+// ********************************************************
+// Modules
+// ********************************************************
+
+module storageAccount './modules/storage-account.bicep' = {
+  name: '${resources.storageAccountName}-deployment'
+  scope: resourceGroup
+  params: {
+    name: resources.storageAccountName
+    location: location
+    tags: {
+      environment: 'shared'
     }
   }
 }
 
-resource r_databricksManagedResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' existing = {
-  scope: subscription()
-  name: databricksManagedResourceGroupName
+module logAnalyticsWorkspace './modules/log-analytics-workspace.bicep' = {
+  name: '${resources.logAnalyticsWorkspaceName}-deployment'
+  scope: resourceGroup
+  params: {
+    name: resources.logAnalyticsWorkspaceName
+    location: location
+    tags: {
+      environment: 'shared'
+    }
+    storageAccountId: storageAccount.outputs.id
+  }
 }
 
-//********************************************************
-// RBAC Role Assignments
-//********************************************************
-
-//********************************************************
-// Deployment Scripts
-//********************************************************
+module databricks './modules/databricks.bicep' = {
+  name: '${resources.databricksName}-deployment'
+  scope: resourceGroup
+  params: {
+    name: resources.databricksName
+    location: location
+    tags: {
+      environment: 'shared'
+    }
+    managedResourceGroupName: mrgDatabricksName
+    logAnalyticsWorkspaceId: logAnalyticsWorkspace.outputs.id
+  }
+}
 
 //********************************************************
 // Outputs
 //********************************************************
+
+output storageAccountName string = storageAccount.outputs.name
+output logAnalyticsWorkspaceName string = logAnalyticsWorkspace.outputs.name
+output databricksName string = databricks.outputs.name
+output databricksHostname string = databricks.outputs.hostname
