@@ -20,7 +20,8 @@ param location string = 'australiaeast'
 var serviceSuffix = substring(uniqueString(resourceGroupName), 0, 5)
 
 var resources = {
-  databricksName: 'dbw01${serviceSuffix}'
+  databricksStagingName: 'dbw01${serviceSuffix}'
+  databricksProductionName: 'dbw02${serviceSuffix}'
   logAnalyticsWorkspaceName: 'log01${serviceSuffix}'
   storageAccountName: 'st01${serviceSuffix}'
 }
@@ -63,19 +64,26 @@ module logAnalyticsWorkspace './modules/log-analytics-workspace.bicep' = {
   }
 }
 
-module databricks './modules/databricks.bicep' = {
-  name: '${resources.databricksName}-deployment'
-  scope: resourceGroup
-  params: {
-    name: resources.databricksName
-    location: location
-    tags: {
-      environment: 'shared'
+var databricksWorkspaces = [
+  { name: resources.databricksStagingName, environment: 'staging' }
+  { name: resources.databricksProductionName, environment: 'production' }
+]
+
+module databricks './modules/databricks.bicep' = [
+  for databricks in databricksWorkspaces: {
+    name: '${databricks.name}-deployment'
+    scope: resourceGroup
+    params: {
+      name: databricks.name
+      location: location
+      tags: {
+        environment: databricks.environment
+      }
+      managedResourceGroupName: '${mrgDatabricksName}-${databricks.environment}'
+      logAnalyticsWorkspaceId: logAnalyticsWorkspace.outputs.id
     }
-    managedResourceGroupName: mrgDatabricksName
-    logAnalyticsWorkspaceId: logAnalyticsWorkspace.outputs.id
   }
-}
+]
 
 //********************************************************
 // Outputs
@@ -83,5 +91,7 @@ module databricks './modules/databricks.bicep' = {
 
 output storageAccountName string = storageAccount.outputs.name
 output logAnalyticsWorkspaceName string = logAnalyticsWorkspace.outputs.name
-output databricksName string = databricks.outputs.name
-output databricksHostname string = databricks.outputs.hostname
+output databricksStagingName string = databricks[0].outputs.name
+output databricksProductionName string = databricks[1].outputs.name
+output databricksStagingHostname string = databricks[0].outputs.hostname
+output databricksProductionHostname string = databricks[1].outputs.hostname
