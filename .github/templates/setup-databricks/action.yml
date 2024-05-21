@@ -1,0 +1,104 @@
+name: Setup Databricks
+
+description: This workflow sets up a Databricks workspace.
+
+inputs:
+  bicep_output_variable_name:
+    description: The name of the output variable from the Bicep deployment corresponding to the Databricks workspace.
+    required: true
+  
+runs:
+  using: "composite"
+
+  steps:
+
+      # Set Databricks host and token environment variables
+      - name: Set Databricks environment variables
+        uses: azure/cli@v2
+        with:
+          azcliversion: ${{ env.AZ_CLI_VERSION }}
+          inlineScript: |
+            echo "DATABRICKS_HOST=https://$(jq .properties.outputs.${{ inputs.bicep_output_variable_name }}.value \
+              deployment-output.json -r)" >> $GITHUB_ENV
+
+            echo "DATABRICKS_TOKEN=$(az account get-access-token \
+              --resource 2ff814a6-3304-4ab8-85cb-cd0e6f879c1d | jq .accessToken -r)" >> $GITHUB_ENV
+
+      # Install the Databricks CLI
+      - name: Install Databricks CLI
+        shell: bash
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+
+      # Configure the Databricks CLI
+      - name: Databricks CLI config
+        shell: bash
+        run: |
+          cat > ~/.databrickscfg << EOF 
+          [DEFAULT] 
+          host = $DATABRICKS_HOST
+          token = $DATABRICKS_TOKEN
+          EOF
+
+      # Create Databricks cluster
+      - name: Create Databricks cluster
+        shell: bash
+        run: |
+          # Create artifacts directory
+          mkdir artifacts
+
+          # Create Databricks cluster
+          curl -X POST "$DATABRICKS_HOST/api/2.0/clusters/create" \
+            -H "Authorization: Bearer $DATABRICKS_TOKEN" \
+            -d '{
+                "num_workers": 0,
+                "cluster_name": "default",
+                "spark_version": "14.3.x-cpu-ml-scala2.12",
+                "spark_conf": {
+                    "spark.master": "local[*, 4]",
+                    "spark.databricks.cluster.profile": "singleNode"
+                },
+                "azure_attributes": {
+                    "first_on_demand": 1,
+                    "availability": "ON_DEMAND_AZURE",
+                    "spot_bid_max_price": -1
+                },
+                "node_type_id": "Standard_D4ads_v5",
+                "driver_node_type_id": "Standard_D4ads_v5",
+                "autotermination_minutes": 60,
+                "enable_elastic_disk": true,
+                "enable_local_disk_encryption": false,
+                "runtime_engine": "STANDARD"
+            }' > artifacts/cluster-output-${{ inputs.bicep_output_variable_name }}.json
+            
+            # Display cluster output
+            cat artifacts/cluster-output-${{ inputs.bicep_output_variable_name }}.json
+
+      # Set Databricks cluster id environment variable
+      - name: Set Databricks clister id
+        shell: bash
+        run: |
+          echo "DATABRICKS_CLUSTER_ID=$(jq .cluster_id artifacts/cluster-output-${{ inputs.bicep_output_variable_name }}.json -r)" >> $GITHUB_ENV
+
+      # Upload files to DBFS
+      - name: Upload data to dbfs
+        shell: bash
+        run: |
+          databricks fs mkdir dbfs:/FileStore/data/credit-card-default-uci-curated
+          databricks fs cp -r databricks/data/curated.csv dbfs:/FileStore/data/credit-card-default-uci-curated/01.csv
+          databricks fs mkdir dbfs:/FileStore/data/credit-card-default-uci-inference
+          databricks fs cp -r databricks/data/inference.csv dbfs:/FileStore/data/credit-card-default-uci-inference/01.csv
+
+      # Trigger notebook to create external tables
+      - name: Create external tables
+        uses: databricks/run-notebook@v0
+        with:
+          databricks-host: ${{ env.DATABRICKS_HOST }}
+          databricks-token: ${{ env.DATABRICKS_TOKEN }}
+          existing-cluster-id: ${{ env.DATABRICKS_CLUSTER_ID }}
+          local-notebook-path: databricks/src/00-create-external-table.ipynb
+          notebook-params-json: >
+            {
+              "curated_path": "dbfs:/FileStore/data/credit-card-default-uci-curated",
+              "inference_path": "dbfs:/FileStore/data/credit-card-default-uci-inference"
+            }
