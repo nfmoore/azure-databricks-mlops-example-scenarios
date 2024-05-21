@@ -1,4 +1,4 @@
-name: Deploy to Container Apps
+name: Deploy to Databricks
 
 on:
   # Trigger the workflow manually
@@ -19,7 +19,6 @@ on:
 
 env:
   AZ_CLI_VERSION: 2.59.0
-  APP_NAME: creditdefaultapi
   GITHUB_RUN_ID: ${{ github.run_id }}
   DEPLOYMENT_RESOURCE_GROUP_NAME: ${{ vars.DEPLOYMENT_RESOURCE_GROUP_NAME }}
 
