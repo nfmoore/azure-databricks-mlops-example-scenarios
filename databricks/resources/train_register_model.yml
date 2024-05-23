@@ -2,9 +2,9 @@ variables:
   curated_dataset_table:
     default: hive_metastore.default.credit_default_uci_curated
   experiment_name:
-    default: /azure_databricks_containers_mlops_example_scenarios
+    default: /azure_databricks_mlops_example_scenarios
   model_name:
-    default: credit-default-uci-custom
+    default: credit-default-uci-sklearn
 
 resources:
   jobs:
