@@ -1,5 +1,12 @@
 # Databricks notebook source
 # MAGIC %md
+# MAGIC # Batch Inference
+# MAGIC
+# MAGIC This notebook outlines a workflow for generating model predictions.
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC #### Import dependencies, define notebook parameters and constants
 
 # COMMAND ----------
