@@ -10,7 +10,7 @@ variables:
 
 resources:
   jobs:
-    train_register_model_job:
+    batch_inference_job:
       name: batch_inference
       job_clusters:
         - job_cluster_key: batch_inference_job_cluster
