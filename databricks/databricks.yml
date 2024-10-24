@@ -2,7 +2,8 @@ bundle:
   name: azure_databricks_mlops_example_scenarios
 
 include:
-  - resources/*.yml
+  - resources/train_register_model.yml
+  - resources/batch_inference.yml
 
 workspace:
-  host: https://adb-3497811875124363.3.azuredatabricks.net # <your-databricks-host>
+  host: https://adb-3167755610055478.18.azuredatabricks.net # <your-databricks-host>
