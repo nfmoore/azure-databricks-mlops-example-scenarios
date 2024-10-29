@@ -55,6 +55,7 @@ jobs:
         uses: "./.github/templates/deploy-databricks-bundle"
         with:
           resource_group: ${{ env.DEPLOYMENT_RESOURCE_GROUP_NAME }}
+          environment_tag: staging
 
       # Run train model workflow
       - name: Run workflow

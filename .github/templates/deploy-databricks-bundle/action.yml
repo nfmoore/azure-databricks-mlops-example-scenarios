@@ -17,6 +17,11 @@ inputs:
     required: false
     default: databricks
 
+  environment_tag:
+    description: The environment tag to use for the Databricks workspace.
+    required: false
+    default: production
+
 runs:
   using: "composite"
 
@@ -37,7 +42,7 @@ runs:
         azcliversion: ${{ env.AZ_CLI_VERSION }}
         inlineScript: |
           DATABRICKS_WORKSPACE_NAME=$(az resource list --resource-group ${{ inputs.resource_group }} \
-            | jq '.[] | select(.type == "Microsoft.Databricks/workspaces") | .name' -r)
+            | jq '.[] | select(.type == "Microsoft.Databricks/workspaces" and .tags.environment == "${{ inputs.environment_tag }}") | .name' -r)
 
           echo "DATABRICKS_HOST=https://$(az databricks workspace show --name $DATABRICKS_WORKSPACE_NAME \
             --resource-group ${{ inputs.resource_group }} | jq '.workspaceUrl' -r)" >> $GITHUB_ENV
