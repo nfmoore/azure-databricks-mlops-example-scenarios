@@ -1,6 +1,6 @@
 variables:
   model_name:
-    default: credit-default-uci-sklearn
+    default: credit-default
   model_version:
     default: "1"
 
@@ -12,6 +12,6 @@ resources:
         served_models:
           - model_name: ${var.model_name}
             model_version: ${var.model_version}
-            name: "${var.model_name}-endpoint"
+            name: ${var.model_name}-endpoint
             scale_to_zero_enabled: true
             workload_size: Small

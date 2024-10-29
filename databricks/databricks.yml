@@ -4,6 +4,7 @@ bundle:
 include:
   - resources/train_register_model.yml
   - resources/batch_inference.yml
+  - resources/serving_endpoint.yml
 
 workspace:
-  host: https://adb-3167755610055478.18.azuredatabricks.net # <your-databricks-host>
+  host: # <your-databricks-host>
