@@ -1,0 +1,103 @@
+name: Deploy to Databricks
+
+on:
+  # Trigger the workflow manually
+  workflow_dispatch:
+
+  # Trigger the workflow on pull request
+  # pull_request:
+  #   types:
+  #     - opened
+  #     - synchronize
+  #   branches:
+  #     - main
+
+  # Trigger the workflow on push
+  # push:
+  #   branches:
+  #     - main
+
+env:
+  AZ_CLI_VERSION: 2.59.0
+  GITHUB_RUN_ID: ${{ github.run_id }}
+  DEPLOYMENT_RESOURCE_GROUP_NAME: ${{ vars.DEPLOYMENT_RESOURCE_GROUP_NAME }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  train:
+    name: Staging Train Model
+    runs-on: ubuntu-latest
+    environment:
+      name: Staging
+    steps:
+      # Checkout the repository to the GitHub Actions runner
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+        # Authenticate to Az CLI using OIDC
+      - name: Azure CLI login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Set bundle resources
+        run: |
+          cd databricks
+          yq eval '.include = ["resources/train_register_model.yml"]' -i ./databricks.yml
+          cat ./databricks.yml
+
+      # Deploy Databricks Bundle
+      - name: Deploy Databricks Bundle
+        uses: "./.github/templates/deploy-databricks-bundle"
+        with:
+          resource_group: ${{ env.DEPLOYMENT_RESOURCE_GROUP_NAME }}
+
+      # Run train model workflow
+      - name: Run workflow
+        working-directory: databricks
+        run: |
+          # Create artifacts directory
+          mkdir train-artifacts
+          
+          # Run train model workflow
+          databricks bundle run train_register_model_job --output json > train-artifacts/workflow-output.json
+
+          # Display workflow output
+          cat train-artifacts/workflow-output.json
+
+      # Upload output from workflow run
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: train-artifacts
+          path: databricks/train-artifacts
+          if-no-files-found: error
+
+  staging:
+    name: Staging Deployment
+    runs-on: ubuntu-latest
+    needs: [train]
+    environment:
+      name: Staging
+    steps:
+      # Checkout the repository to the GitHub Actions runner
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # Authenticate to Az CLI using OIDC
+      - name: Azure CLI login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Deploy Databricks Bundle
+      - name: Deploy Databricks Bundle
+        uses: "./.github/templates/deploy-databricks-bundle"
+        with:
+          resource_group: ${{ env.DEPLOYMENT_RESOURCE_GROUP_NAME }}

@@ -6,7 +6,7 @@ inputs:
   resource_group:
     description: The resource group where the container app is deployed.
     required: true
-  
+
   bundle_config_file:
     description: The path to the Databricks bundle configuration file.
     required: false
@@ -21,7 +21,6 @@ runs:
   using: "composite"
 
   steps:
-
     # Add Databricks Azure CLI extension
     - name: Add Databricks extension
       uses: azure/cli@v2
