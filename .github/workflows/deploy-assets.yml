@@ -44,6 +44,7 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
       - name: Set bundle resources
         run: |
           cd databricks
@@ -102,3 +103,4 @@ jobs:
         uses: "./.github/templates/deploy-databricks-bundle"
         with:
           resource_group: ${{ env.DEPLOYMENT_RESOURCE_GROUP_NAME }}
+          environment_tag: staging
