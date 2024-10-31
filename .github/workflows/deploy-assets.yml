@@ -72,12 +72,12 @@ jobs:
           # cat train-artifacts/workflow-output.json
 
       # Upload output from workflow run
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: train-artifacts
-          path: databricks/train-artifacts
-          if-no-files-found: error
+      # - name: Upload artifacts
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: train-artifacts
+      #     path: databricks/train-artifacts
+      #     if-no-files-found: error
 
   staging:
     name: Staging Deployment
