@@ -1,0 +1,56 @@
+{
+    "dataframe_split": {
+        "columns": [
+            "sex",
+            "education",
+            "marriage",
+            "repayment_status_1",
+            "repayment_status_2",
+            "repayment_status_3",
+            "repayment_status_4",
+            "repayment_status_5",
+            "repayment_status_6",
+            "credit_limit",
+            "age",
+            "bill_amount_1",
+            "bill_amount_2",
+            "bill_amount_3",
+            "bill_amount_4",
+            "bill_amount_5",
+            "bill_amount_6",
+            "payment_amount_1",
+            "payment_amount_2",
+            "payment_amount_3",
+            "payment_amount_4",
+            "payment_amount_5",
+            "payment_amount_6"
+        ],
+        "data": [
+            [
+                "female",
+                "university",
+                "married",
+                "delay_2_months",
+                "delay_2_months",
+                "no_delay",
+                "no_delay",
+                "no_delay",
+                "no_delay",
+                1000,
+                24,
+                994.55,
+                794.75,
+                857,
+                922.85,
+                1069.05,
+                945.7,
+                0,
+                75,
+                80,
+                82.3,
+                33.9,
+                50
+            ]
+        ]
+    }
+}
