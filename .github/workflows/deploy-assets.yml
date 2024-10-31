@@ -69,7 +69,7 @@ jobs:
           # databricks bundle run train_register_model_job --output json > train-artifacts/workflow-output.json
 
           # Display workflow output
-          cat train-artifacts/workflow-output.json
+          # cat train-artifacts/workflow-output.json
 
       # Upload output from workflow run
       - name: Upload artifacts
