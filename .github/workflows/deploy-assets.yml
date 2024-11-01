@@ -172,7 +172,7 @@ jobs:
     name: Production Train Model
     # if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
-    needs: [test]
+    needs: [staging-deploy]
     environment:
       name: Production
     steps:
