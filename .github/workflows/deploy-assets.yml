@@ -154,12 +154,12 @@ jobs:
 
           curl -X POST "$DATABRICKS_HOST/serving-endpoints/$ENDPOINT_NAME/invocations" \
             -H "Content-Type: application/json" \
-            -u token:$DATABRICKS_TOKEN \
+            -H "Authorization: Bearer ${DATABRICKS_TOKEN}" \
             -d@databricks/src/sample-request.json
           
           STATUS_CODE=$(curl -X POST "$DATABRICKS_HOST/serving-endpoints/$ENDPOINT_NAME/invocations" \
             -H "Content-Type: application/json" \
-            -u token:$DATABRICKS_TOKEN \
+            -H "Authorization: Bearer ${DATABRICKS_TOKEN}" \
             -d@databricks/src/sample-request.json \
             -o response.json \
             -w "%{http_code}" \
