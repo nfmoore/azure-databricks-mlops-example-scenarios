@@ -1,0 +1,28 @@
+variables:
+  inference_dataset_table:
+    default: hive_metastore.default.credit_default_uci_inference
+  experiment_name:
+    default: /azure_databricks_mlops_example_scenarios
+  model_name:
+    default: credit-default-uci-sklearn
+  model_version:
+    default: "1"
+
+resources:
+  jobs:
+    batch_inference_job:
+      name: batch_inference
+      job_clusters:
+        - job_cluster_key: batch_inference_job_cluster
+          new_cluster:
+            node_type_id: Standard_D4ads_v5
+            num_workers: 1
+            spark_version: 14.3.x-cpu-ml-scala2.12
+      tasks:
+        - task_key: batch_inference
+          job_cluster_key: batch_inference_job_cluster
+          notebook_task:
+            notebook_path: ../src/03-batch-inference.ipynb
+            base_parameters:
+              inference_dataset_table: ${var.inference_dataset_table}
+              model_uri: models:/${var.model_name}/${var.model_version}

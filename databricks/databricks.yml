@@ -1,0 +1,10 @@
+bundle:
+  name: azure_databricks_mlops_example_scenarios
+
+include:
+  - resources/train_register_model.yml
+  - resources/batch_inference.yml
+  - resources/serving_endpoint.yml
+
+workspace:
+  host: # <your-databricks-host>
