@@ -134,7 +134,7 @@ jobs:
       # Set endpoint name
       - name: Set endpoint name
         run: |
-          echo "ENDPOINT_NAME=$(yq eval '.variables.endpoint_name.default' databricks/serving_endpoint.yml -r)" >> $GITHUB_ENV
+          echo "ENDPOINT_NAME=$(yq eval '.variables.endpoint_name.default' databricks/resources/serving_endpoint.yml -r)" >> $GITHUB_ENV
 
       # Smoke test the deployed container app
       - name: Smoke test
