@@ -27,7 +27,7 @@ permissions:
   contents: read
 
 jobs:
-  train:
+  train-staging:
     name: Staging Train Model
     runs-on: ubuntu-latest
     environment:
@@ -79,10 +79,10 @@ jobs:
           path: databricks/train-artifacts
           if-no-files-found: error
 
-  staging:
+  staging-deploy:
     name: Staging Deployment
     runs-on: ubuntu-latest
-    needs: [train]
+    needs: [train-staging]
     environment:
       name: Staging
     steps:
@@ -108,7 +108,7 @@ jobs:
   test:
     name: Smoke Test
     runs-on: ubuntu-latest
-    needs: [staging]
+    needs: [staging-deploy]
     environment:
       name: Staging
     steps:
@@ -168,11 +168,62 @@ jobs:
           # Display the response
           cat response.json
 
-  production:
+  train-production:
+    name: Production Train Model
+    runs-on: ubuntu-latest
+    environment:
+      name: Production
+    steps:
+      # Checkout the repository to the GitHub Actions runner
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+        # Authenticate to Az CLI using OIDC
+      - name: Azure CLI login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set bundle resources
+        run: |
+          cd databricks
+          yq eval '.include = ["resources/train_register_model.yml"]' -i ./databricks.yml
+          cat ./databricks.yml
+
+      # Deploy Databricks Bundle
+      - name: Deploy Databricks Bundle
+        uses: "./.github/templates/deploy-databricks-bundle"
+        with:
+          resource_group: ${{ env.DEPLOYMENT_RESOURCE_GROUP_NAME }}
+
+      # Run train model workflow
+      - name: Run workflow
+        working-directory: databricks
+        run: |
+          # Create artifacts directory
+          mkdir train-artifacts
+          
+          # Run train model workflow
+          databricks bundle run train_register_model_job --output json > train-artifacts/workflow-output.json
+
+          # Display workflow output
+          cat train-artifacts/workflow-output.json
+
+      # Upload output from workflow run
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: train-artifacts
+          path: databricks/train-artifacts
+          if-no-files-found: error
+
+  production-deploy:
     name: Production Deployment
     # if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
-    needs: [staging]
+    needs: [train-production]
     environment:
       name: Production
     steps:
