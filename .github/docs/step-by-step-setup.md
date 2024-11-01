@@ -73,7 +73,7 @@ Before implementing this example scenario the following is needed:
     ```bash
     # set environment variables for the federated credentials
     export APPLICATION_ID=<your-application-id> # replace with your application id
-    export REPOSITORY_NAME=example-scenarios-databricks-containers-mlops # replace with your repository name
+    export REPOSITORY_NAME=azure-databricks-mlops-example-scenarios # replace with your repository name
     export OWNER=<your-username># replace with your GitHub username
 
     # create federated credential for workflows targeting the Production environment
@@ -273,6 +273,47 @@ After executing these steps you will have deployed all Azure resources required 
 
 ## 2. Example Sceanrios
 
-## 2.1. Serving Endpoint
+## 2.1. Deploy Assets - Serving Endpoint (Online) and Databricks Workflow (Batch)
 
-## 2.2. Databricks Workflow
+Execute the `Deploy to Databricks` workflow to train a model, instantiate a Databricks workflow, and deploy a serving endpoint.
+
+To workflow can be executed via the following methods:
+
+**Method 1: GitHub CLI**:
+
+1. Trigger the workflow via the GitHub CLI by executing the following command:
+
+    ```bash
+    # optional - used to authenticate with your GitHub account
+    gh auth login
+
+    # trigger the workflow
+    gh workflow run "Deploy to Databricks"
+    ```
+
+**Method 2: GitHub Actions UI**:
+
+1. Manually trigger the workflow via the GitHub Actions UI by following these steps:
+
+   1. Navigate to the GitHub repository.
+   2. Click on the `Actions` tab.
+   3. Click on the `Deploy to Databricks` workflow.
+   4. Click on the `Run workflow` button.
+   5. Click on the `Run workflow` button again to confirm the action.
+
+After executing these steps the `Deploy to Databricks` workflow will instantiate a Databricks workflow, and deploy a serving endpoint, smoke test the deployment, and rollout the same assets to production.
+
+After the `Staging Train Model` job completes you will have registered a model in the Staging Databricks workspace.
+
+After the `Staging Deployment` job completes you will have deployed a serving endpoint in the `Staging` environment. The `Smoke Test` job will execute a smoke test on the serving endpoint.
+
+You will be prompted to review the deployment before deploying the assets to the `Production` environment. Click the `Review deployments` button to give approval and commence the Production job.
+
+> [!IMPORTANT]
+>
+> - The `Deploy Azure Resources` workflow is a prerequisite for the `Deploy to Databricks` workflow.
+
+> [!NOTE]
+>
+> - The `Deploy to Databricks` workflow is configured with a `workflow_dispatch` trigger (a manual process) for illistration purposes only.
+> - More information about CI/CD with GitHub Actions is available [here](https://docs.github.com/en/actions/learn-github-actions/understanding-github-actions).
